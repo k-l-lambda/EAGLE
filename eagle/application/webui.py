@@ -1,5 +1,5 @@
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+#import os
+#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import time
 
 import gradio as gr
