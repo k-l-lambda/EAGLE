@@ -9,7 +9,8 @@ class TestAPIServer(unittest.TestCase):
 	def test_generate_text(self):
 		payload = {
 			"messages": [
-				{"role": "user", "content": "What are the names of some famous actors that started their careers on Broadway?"}
+				{"role": "human", "content": "What are the names of some famous actors that started their careers on Broadway?"},
+				{"role": "assistant"},
 			],
 			"max_new_tokens": 512,
 			"temperature": 0,

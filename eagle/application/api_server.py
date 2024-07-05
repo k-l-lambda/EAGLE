@@ -34,7 +34,7 @@ def generate_text():
 	# Add messages to the conversation template
 	for message in messages:
 		role = message.get('role', '')
-		content = message.get('content', '')
+		content = message.get('content', None)
 		conv.append_message(conv.roles[0] if role.lower() == "human" else conv.roles[1], content)
 
 	# Get the prompt from the conversation template
