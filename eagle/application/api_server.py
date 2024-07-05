@@ -29,8 +29,7 @@ def generate_text():
 	top_k = data.get('top_k', 0)
 
 	# Create a conversation template based on the model type
-	model_type = ea_model.base_model_name_or_path.split("/")[-2]
-	conv = get_conversation_template(model_type)
+	conv = get_conversation_template(ea_model.base_model_name_or_path)
 
 	# Add messages to the conversation template
 	for message in messages:
@@ -40,6 +39,7 @@ def generate_text():
 
 	# Get the prompt from the conversation template
 	prompt = conv.get_prompt()
+	#print('prompt:', prompt)
 
 	input_ids = ea_model.tokenizer.encode(prompt, return_tensors='pt').cuda()
 	#attention_mask = torch.ones_like(input_ids)
@@ -55,7 +55,7 @@ def generate_text():
 			max_new_tokens=max_new_tokens
 		)
 
-	generated_text = ea_model.tokenizer.decode(output_ids[0], skip_special_tokens=True)
+	generated_text = ea_model.tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True)
 	return jsonify({'generated_text': generated_text})
 
 
