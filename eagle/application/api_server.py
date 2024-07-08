@@ -35,7 +35,8 @@ def generate_text():
 	for message in messages:
 		role = message.get('role', '')
 		content = message.get('content', None)
-		conv.append_message(conv.roles[0] if role.lower() == "human" else conv.roles[1], content)
+		conv.append_message(conv.roles[0] if role.lower() == "user" else conv.roles[1], content)
+	conv.append_message(conv.roles[1], '')
 
 	# Get the prompt from the conversation template
 	prompt = conv.get_prompt()
@@ -56,7 +57,13 @@ def generate_text():
 		)
 
 	generated_text = ea_model.tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True)
-	return jsonify({'generated_text': generated_text})
+	#return jsonify({'generated_text': generated_text})
+	return jsonify({'choices': [
+		{'message': {
+			'content': generated_text,
+			'role': 'assistant',
+		}},
+	]})
 
 
 if __name__ == '__main__':
@@ -70,4 +77,4 @@ if __name__ == '__main__':
 	)
 	ea_model.eval()
 
-	app.run(host=args.host, port=args.port, debug=False)
+	app.run(host=args.host, port=args.port, debug=False, threaded=False)

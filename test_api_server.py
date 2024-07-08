@@ -9,8 +9,7 @@ class TestAPIServer(unittest.TestCase):
 	def test_generate_text(self):
 		payload = {
 			"messages": [
-				{"role": "human", "content": "What are the names of some famous actors that started their careers on Broadway?"},
-				{"role": "assistant"},
+				{"role": "user", "content": "Who is Larry Page?"},
 			],
 			"max_new_tokens": 512,
 			"temperature": 0,
@@ -20,7 +19,7 @@ class TestAPIServer(unittest.TestCase):
 
 		response = requests.post(self.api_url, json=payload)
 		data = response.json()
-		print('generated_text:', data["generated_text"])
+		print('generated_text:', data["choices"][0])
 
 if __name__ == "__main__":
 	unittest.main()
