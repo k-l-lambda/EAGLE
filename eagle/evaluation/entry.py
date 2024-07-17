@@ -1,7 +1,7 @@
 
 import argparse
 import json
-import os
+from pathlib import Path
 
 
 
@@ -19,7 +19,7 @@ def reorg_answer_file (answer_file):
             fout.write(answers[qid])
 
 
-def gen_entry (run_eval):
+def gen_entry (run_eval, postfix=''):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--ea-model-path",
@@ -121,10 +121,12 @@ def gen_entry (run_eval):
 
     #question_file = f"{parent_dir}/data/{args.bench_name}/question-alpaca20.jsonl"
     question_file = args.data_path
+    question_name = Path(question_file).stem
+
     if args.answer_file:
         answer_file = args.answer_file
     else:
-        answer_file = f"{args.bench_name}/{args.model_id}-alpaca20.jsonl"
+        answer_file = f"{args.bench_name}/{args.model_id}-{question_name}-{postfix}.jsonl"
 
     print(f"Output to {answer_file}")
 

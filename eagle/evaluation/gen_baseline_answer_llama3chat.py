@@ -18,7 +18,6 @@ from fastchat.llm_judge.common import load_questions
 from tqdm import tqdm
 
 from ..model.ea_model import EaModel
-from ..model.kv_cache import initialize_past_key_values
 from ..model.utils import *
 from .entry import gen_entry
 
@@ -300,4 +299,4 @@ def get_model_answers(
 
 
 if __name__ == "__main__":
-    gen_entry(run_eval)
+    gen_entry(run_eval, 'baseline')
