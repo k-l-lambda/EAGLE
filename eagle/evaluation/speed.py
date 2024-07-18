@@ -1,10 +1,29 @@
 import json
 from transformers import AutoTokenizer
 import numpy as np
+import argparse
 
-tokenizer=AutoTokenizer.from_pretrained("/home/lyh/weights/hf/llama2chat/13B/")
-jsonl_file = "llama-2-chat-70b-fp16-ea-in-temperature-0.0.jsonl"
-jsonl_file_base = "llama-2-chat-70b-fp16-base-in-temperature-0.0.jsonl"
+
+
+#tokenizer=AutoTokenizer.from_pretrained("/models/Meta-Llama-3-8B-Instruct/")
+#jsonl_file = "mt_bench/llama38b2_40-temperature-0.0-FewCLUE-bustm-eagle.jsonl"
+#jsonl_file_base = "mt_bench/llama38b2_40-temperature-0.0-FewCLUE-bustm-baseline.jsonl"
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--tokenizer", type=str, default="/models/Meta-Llama-3-8B-Instruct/")
+parser.add_argument("--jsonl-base", type=str)
+parser.add_argument("--postfix", type=str, default="eagle:baseline")
+args = parser.parse_args()
+
+
+tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
+
+postfix1, postfix_base = args.postfix.split(":")
+jsonl_file = f"{args.jsonl_base}{postfix1}.jsonl"
+jsonl_file_base = f"{args.jsonl_base}{postfix_base}.jsonl"
+
+
 data = []
 with open(jsonl_file, 'r', encoding='utf-8') as file:
     for line in file:

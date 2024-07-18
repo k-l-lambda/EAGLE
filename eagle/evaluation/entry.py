@@ -51,7 +51,7 @@ def gen_entry (run_eval, postfix=''):
     parser.add_argument(
         "--max-new-token",
         type=int,
-        default=1024,
+        default=512,
         help="The maximum number of new generated tokens.",
     )
     parser.add_argument(
