@@ -111,6 +111,12 @@ def gen_entry (run_eval, postfix=''):
         default="mc_sim_7b_63",
     )
 
+    parser.add_argument(
+        "--out-postfix",
+        type=str,
+        default="",
+    )
+
     args = parser.parse_args()
 
     args.model_id = args.model_id + "-temperature-" + str(args.temperature)
@@ -126,6 +132,8 @@ def gen_entry (run_eval, postfix=''):
     if args.answer_file:
         answer_file = args.answer_file
     else:
+        if args.out_postfix:
+            postfix += args.out_postfix
         answer_file = f"{args.bench_name}/{args.model_id}-{question_name}-{postfix}.jsonl"
 
     print(f"Output to {answer_file}")
