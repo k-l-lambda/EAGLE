@@ -17,14 +17,15 @@ from fastchat.llm_judge.common import load_questions
 from fastchat.model import get_conversation_template
 
 #try:
-from model.utils import *
-from model.ea_model import EaModel
-from model.kv_cache import initialize_past_key_values
-from model.choices import *
+from ..model.utils import *
+from ..model.ea_model import EaModel
+from ..model.kv_cache import initialize_past_key_values
+from ..model.choices import *
+from .entry import gen_entry
 
 
 
-def ea_forward(input_ids, model, tokenizer, tree_choices, logits_processor=None, max_steps=512):
+'''def ea_forward(input_ids, model, tokenizer, tree_choices, logits_processor=None, max_steps=512):
     assert input_ids.shape[0] == 1, "Only support batch size 1 for now!!"
     # Avoid modifying the input_ids in-place
     input_ids = input_ids.clone()
@@ -81,7 +82,7 @@ def ea_forward(input_ids, model, tokenizer, tree_choices, logits_processor=None,
             break
         if input_ids.shape[1] > 1960:
             break
-    return input_ids, new_token, idx
+    return input_ids, new_token, idx'''
 
 
 def run_eval(
@@ -202,12 +203,17 @@ def get_model_answers(
             torch.cuda.synchronize()
             start_time = time.time()
 
-            output_ids, new_token, idx = ea_forward(
+            #output_ids, new_token, idx = ea_forward(
+            #    torch.as_tensor(input_ids).cuda(),
+            #    model,
+            #    tokenizer,
+            #    tree_choices,
+            #    logits_processor,
+            #)
+            output_ids, new_token, idx = model.naivegenerate(
                 torch.as_tensor(input_ids).cuda(),
-                model,
-                tokenizer,
-                tree_choices,
-                logits_processor,
+                temperature=temperature,
+                log=True,
             )
             torch.cuda.synchronize()
             total_time = time.time() - start_time
@@ -271,12 +277,17 @@ def get_model_answers(
                 try:
                     torch.cuda.synchronize()
                     start_time = time.time()
-                    output_ids, new_token, idx = ea_forward(
+                    #output_ids, new_token, idx = ea_forward(
+                    #    torch.as_tensor(input_ids).cuda(),
+                    #    model,
+                    #    tokenizer,
+                    #    tree_choices,
+                    #    logits_processor,
+                    #)
+                    output_ids, new_token, idx = model.naivegenerate(
                         torch.as_tensor(input_ids).cuda(),
-                        model,
-                        tokenizer,
-                        tree_choices,
-                        logits_processor,
+                        temperature=temperature,
+                        log=True,
                     )
                     torch.cuda.synchronize()
                     total_time = time.time() - start_time
@@ -332,121 +343,5 @@ def get_model_answers(
             fout.write(json.dumps(ans_json) + "\n")
 
 
-def reorg_answer_file(answer_file):
-    """Sort by question id and de-duplication"""
-    answers = {}
-    with open(answer_file, "r") as fin:
-        for l in fin:
-            qid = json.loads(l)["question_id"]
-            answers[qid] = l
-
-    qids = sorted(list(answers.keys()))
-    with open(answer_file, "w") as fout:
-        for qid in qids:
-            fout.write(answers[qid])
-
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--ea-model-path",
-        type=str,
-        default="down_checkpoints/LC70B",
-        help="The path to the weights. This can be a local folder or a Hugging Face repo ID.",
-    )
-    parser.add_argument("--base-model-path", type=str, default="/home/lyh/weights/hf/llama2chat/70B/",
-                        help="1")
-    parser.add_argument(
-        "--load-in-8bit", action="store_false", help="Use 8-bit quantization"
-    )
-    parser.add_argument("--model-id", type=str, default="ess-llama-2-chat-70b-fp16-baseline")
-    parser.add_argument(
-        "--bench-name",
-        type=str,
-        default="mt_bench",
-        help="The name of the benchmark question set.",
-    )
-    parser.add_argument(
-        "--question-begin",
-        type=int,
-        help="A debug option. The begin index of questions.",
-    )
-    parser.add_argument(
-        "--question-end", type=int, help="A debug option. The end index of questions."
-    )
-    parser.add_argument("--answer-file", type=str, help="The output answer file.")
-    parser.add_argument(
-        "--max-new-token",
-        type=int,
-        default=1024,
-        help="The maximum number of new generated tokens.",
-    )
-    parser.add_argument(
-        "--num-choices",
-        type=int,
-        default=1,
-        help="How many completion choices to generate.",
-    )
-    parser.add_argument(
-        "--num-gpus-per-model",
-        type=int,
-        default=1,
-        help="The number of GPUs per model.",
-    )
-    parser.add_argument(
-        "--num-gpus-total", type=int, default=1, help="The total number of GPUs."
-    )
-    parser.add_argument(
-        "--max-gpu-memory",
-        type=str,
-        help="Maxmum GPU memory used for model weights per GPU.",
-    )
-
-    parser.add_argument(
-        "--temperature",
-        type=float,
-        default=1.0,
-    )
-
-    parser.add_argument(
-        "--tree-choices",
-        type=str,
-        default="mc_sim_7b_63",
-    )
-
-    args = parser.parse_args()
-
-    args.model_id = args.model_id + "-temperature-" + str(args.temperature)
-    args.tree_choices = eval(args.tree_choices)
-    if args.num_gpus_total // args.num_gpus_per_model > 1:
-        import ray
-
-        ray.init()
-
-    question_file = f"{parent_dir}/data/{args.bench_name}/question.jsonl"
-    if args.answer_file:
-        answer_file = args.answer_file
-    else:
-        answer_file = f"{args.bench_name}/{args.model_id}.jsonl"
-
-    print(f"Output to {answer_file}")
-
-    run_eval(
-        args.base_model_path,
-        args.ea_model_path,
-        args.model_id,
-        question_file,
-        args.question_begin,
-        args.question_end,
-        answer_file,
-        args.max_new_token,
-        args.num_choices,
-        args.num_gpus_per_model,
-        args.num_gpus_total,
-        args.max_gpu_memory,
-
-        args.temperature,
-        args.tree_choices,
-    )
-
-    reorg_answer_file(answer_file)
+    gen_entry(run_eval, 'baseline')
