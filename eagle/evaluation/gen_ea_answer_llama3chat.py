@@ -150,7 +150,7 @@ def get_model_answers(
             torch.cuda.synchronize()
             start_time = time.time()
 
-            output_ids, new_token, idx = model.eagenerate(
+            output_ids, new_token, idx, _ = model.eagenerate(
                 torch.as_tensor(input_ids).cuda(),
                 temperature=temperature,
                 log=True,
@@ -213,6 +213,7 @@ def get_model_answers(
             ]
             turns = []
             idxs = []
+            taus = []
             new_tokens = []
             wall_time = []
             for j in range(len(question["turns"])):
@@ -232,7 +233,7 @@ def get_model_answers(
                 torch.cuda.synchronize()
                 start_time = time.time()
 
-                output_ids, new_token, idx = model.eagenerate(
+                output_ids, new_token, idx, accept_lengths = model.eagenerate(
                     torch.as_tensor(input_ids).cuda(),
                     temperature=temperature,
                     log=True,
@@ -274,6 +275,7 @@ def get_model_answers(
 
                 turns.append(output)
                 idxs.append(int(idx))
+                taus += accept_lengths
                 new_tokens.append(int(new_token))
                 wall_time.append(total_time)
                 messages.append({
@@ -281,7 +283,7 @@ def get_model_answers(
                     "content": output
                 })
             # torch.cuda.empty_cache()
-            choices.append({"index": i, "turns": turns, "idxs": idxs, "new_tokens": new_tokens, "wall_time": wall_time})
+            choices.append({"index": i, "turns": turns, "idxs": idxs, "taus": taus, "new_tokens": new_tokens, "wall_time": wall_time})
 
         # Dump answers
         os.makedirs(os.path.dirname(answer_file), exist_ok=True)

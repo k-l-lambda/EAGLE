@@ -33,12 +33,14 @@ with open(jsonl_file, 'r', encoding='utf-8') as file:
 
 
 speeds=[]
+taus=[]
 for datapoint in data:
     qid=datapoint["question_id"]
     answer=datapoint["choices"][0]['turns']
     tokens=sum(datapoint["choices"][0]['new_tokens'])
     times = sum(datapoint["choices"][0]['wall_time'])
     speeds.append(tokens/times)
+    taus += datapoint["choices"][0]['taus']
 
 
 data = []
@@ -67,5 +69,6 @@ for datapoint in data:
 # print('speed',np.array(speeds).mean())
 # print('speed0',np.array(speeds0).mean())
 print("ratio",np.array(speeds).mean()/np.array(speeds0).mean())
+print("tau",np.array(taus).mean())
 
 
