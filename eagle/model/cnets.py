@@ -783,7 +783,7 @@ class Model(nn.Module):
         # mask_index[(top_scores_index[mask_index]!=draft_parents - 1)]=-1
         mask_index[draft_parents == 0] = -1
         mask_index = mask_index + 1
-        mask_index_list = mask_index.tolist()
+        mask_index_list = mask_index.tolist()	# the parent indices
         # with Timer("mask"):
         tree_mask = torch.eye(total_tokens + 1).bool()
         tree_mask[:, 0] = True
