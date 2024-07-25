@@ -677,7 +677,7 @@ class Model(nn.Module):
         self.stable_kv = None
 
     @torch.no_grad()
-    def topK_genrate(self, hidden_states, input_ids, head, logits_processor):
+    def topK_genrate(self, hidden_states, input_ids, head, logits_processor, profiler=None):
 
         input_ids = input_ids.to(hidden_states.device)
         total_tokens = self.total_tokens
@@ -697,16 +697,34 @@ class Model(nn.Module):
         self.reset()
 
         # with Timer("draft many"):
+
+        torch.cuda.synchronize()
+        t0 = time.time()
+
         if hasattr(self, "stable_kv") and self.stable_kv is not None:
             kv_len = self.stable_kv[0][0].shape[2]
             out_hidden, past_key_values = self(hidden_states, input_ids=input_ids[:, kv_len:],
                                                past_key_values=self.stable_kv, use_cache=True)
         else:
             out_hidden, past_key_values = self(hidden_states, input_ids=input_ids, use_cache=True)
+
+        if profiler is not None:
+            torch.cuda.synchronize()
+            profiler['ea_layer'] = profiler.get('ea_layer', 0)
+            profiler['ea_layer'] += time.time() - t0
+
         self.stable_kv = past_key_values
         last_hidden = out_hidden[:, -1]
 
+        torch.cuda.synchronize()
+        t0 = time.time()
+
         last_headout = head(last_hidden)
+
+        if profiler is not None:
+            torch.cuda.synchronize()
+            profiler['head'] = profiler.get('head', 0)
+            profiler['head'] += time.time() - t0
 
         last_p = self.logsoftmax(last_headout)
         top = torch.topk(last_p, top_k, dim=-1)
@@ -725,8 +743,17 @@ class Model(nn.Module):
             self.tree_mask = tree_mask
             position_ids = len_posi + self.position_ids
             # with Timer("draft one"):
+            torch.cuda.synchronize()
+            t0 = time.time()
+
             out_hidden, past_key_values = self(input_hidden, input_ids=input_ids, past_key_values=past_key_values,
                                                position_ids=position_ids, use_cache=True)
+
+            if profiler is not None:
+                torch.cuda.synchronize()
+                profiler['ea_layer'] = profiler.get('ea_layer', 0)
+                profiler['ea_layer'] += time.time() - t0
+
             len_posi += 1
 
             # with Timer("sort1"):
@@ -736,7 +763,16 @@ class Model(nn.Module):
             parents = (topk_cs_index + bias)
             parents_list.append(parents)
 
+            torch.cuda.synchronize()
+            t0 = time.time()
+
             last_headout = head(out_hidden[0])
+
+            if profiler is not None:
+                torch.cuda.synchronize()
+                profiler['head'] = profiler.get('head', 0)
+                profiler['head'] += time.time() - t0
+
             last_p = self.logsoftmax(last_headout)
 
             top = torch.topk(last_p, top_k, dim=-1)

@@ -216,6 +216,7 @@ def get_model_answers(
             taus = []
             new_tokens = []
             wall_time = []
+            profiler = {}
             for j in range(len(question["turns"])):
                 qs = question["turns"][j]
                 messages.append({
@@ -239,6 +240,7 @@ def get_model_answers(
                     log=True,
                     is_llama3=True,
                     max_new_tokens=max_new_token,
+                    profiler=profiler,
                 )
                 torch.cuda.synchronize()
                 total_time = time.time() - start_time
@@ -283,7 +285,17 @@ def get_model_answers(
                     "content": output
                 })
             # torch.cuda.empty_cache()
-            choices.append({"index": i, "turns": turns, "idxs": idxs, "taus": taus, "new_tokens": new_tokens, "wall_time": wall_time})
+            choices.append({
+                "index": i,
+                "turns": turns,
+                "idxs": idxs,
+                "taus": taus,
+                "new_tokens": new_tokens,
+                "wall_time": wall_time,
+                "base_time": profiler["base"],
+                "ealayer_time": profiler["ea_layer"],
+                "head_time": profiler["head"],
+            })
 
         # Dump answers
         os.makedirs(os.path.dirname(answer_file), exist_ok=True)

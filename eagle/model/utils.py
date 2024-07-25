@@ -229,10 +229,18 @@ def initialize_tree0(input_ids, model, past_key_values, logits_processor):
     #     return draft_tokens, retrieve_indices,tree_mask,tree_position_ids, hidden_states, token
     return draft_tokens, retrieve_indices,tree_mask,tree_position_ids, logits, hidden_state, sample_token
 
-def initialize_tree(input_ids, model, past_key_values, logits_processor):
+def initialize_tree(input_ids, model, past_key_values, logits_processor, profiler=None):
+    torch.cuda.synchronize()
+    t0 = time.time()
+
     outputs, orig, hidden_states = model(
         input_ids, past_key_values=past_key_values, output_orig=True
     )
+
+    if profiler is not None:
+        torch.cuda.synchronize()
+        profiler['base'] = profiler.get('base', 0)
+        profiler['base'] += time.time() - t0
 
     if logits_processor is not None:
         logits = orig[:, -1]
@@ -245,7 +253,7 @@ def initialize_tree(input_ids, model, past_key_values, logits_processor):
     input_ids = torch.cat((input_ids, token.to(input_ids.device)), dim=1)
     # Clone the output hidden states
 
-    draft_tokens, retrieve_indices,tree_mask,tree_position_ids = model.ea_layer.topK_genrate(hidden_states, input_ids, model.base_model.lm_head,logits_processor)
+    draft_tokens, retrieve_indices,tree_mask,tree_position_ids = model.ea_layer.topK_genrate(hidden_states, input_ids, model.base_model.lm_head,logits_processor, profiler=profiler)
     return draft_tokens, retrieve_indices,tree_mask,tree_position_ids, orig, hidden_states, token
 
 
@@ -305,8 +313,12 @@ def tree_decoding(
         tree_position_ids,
         input_ids,
         retrieve_indices,
+        profiler=None,
 ):
     position_ids = tree_position_ids + input_ids.shape[1]
+
+    torch.cuda.synchronize()
+    t0 = time.time()
 
     outputs, tree_logits, hidden_state = model(
         tree_candidates,
@@ -314,6 +326,11 @@ def tree_decoding(
         past_key_values=past_key_values,
         position_ids=position_ids,
     )
+
+    if profiler is not None:
+        torch.cuda.synchronize()
+        profiler['base'] = profiler.get('base', 0)
+        profiler['base'] += time.time() - t0
 
 
     logits = tree_logits[0, retrieve_indices]
@@ -416,7 +433,8 @@ def update_inference_inputs(
         current_length_data,
         model,
         hidden_state_new,
-        sample_p
+        sample_p,
+        profiler=None,
 ):
     prev_input_len = input_ids.shape[1]
     # Map the best candidate indices to the original indices in the sequence
@@ -453,7 +471,7 @@ def update_inference_inputs(
     # hidden_state = torch.cat((hidden_state, accept_hidden_state_new), dim=1)
     draft_tokens, retrieve_indices,tree_mask,tree_position_ids = model.ea_layer.topK_genrate(accept_hidden_state_new,
                                               input_ids=torch.cat((input_ids, token.to(input_ids.device)), dim=1),
-                                              head=model.base_model.lm_head,logits_processor=logits_processor)
+                                              head=model.base_model.lm_head,logits_processor=logits_processor, profiler=profiler)
 
 
     new_token += accept_length + 1
