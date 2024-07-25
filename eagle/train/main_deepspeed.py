@@ -2,14 +2,15 @@ import argparse
 import deepspeed
 
 parser = argparse.ArgumentParser(description='sp')
-parser.add_argument('--basepath', type=str, default='/home/lyh/weights/hf/llama3chat/8B/')
+parser.add_argument('--basepath', type=str, default='/models/Meta-Llama-3-8B-Instruct')
 parser.add_argument('--tmpdir', type=str,
-                    default='/home/lyh/code/nlp/ess/feature_data_dataset/sharegpt_0_67999_mu_V7B/')
+                    default='/models/datasets/ShareGPT/eagle/1')
 parser.add_argument('--outdir', type=str, default='0')
-parser.add_argument('--cpdir', type=str, default='0')
+parser.add_argument('--cpdir', type=str, default='/models/train/20240724-eagle-llama3-8b')
 parser.add_argument("--local_rank", type=int, default=-1, help="local_rank for distributed training on gpus")
 parser = deepspeed.add_config_arguments(parser)
 args = parser.parse_args()
+#print(f'{args.basepath=}')
 import json
 
 train_config = {
@@ -33,7 +34,7 @@ train_config = {
     "std": 0.2,
     "residual": "true,norm",
     "max_len": 2048,
-    "config_path": "config.json",
+    "config_path": "/root/work/EAGLE/eagle/train/llama_3_8B_config.json",
     "b1": 0.9,
     "b2": 0.95,
     "grad_clip": 0.5,
@@ -51,8 +52,8 @@ from accelerate.utils import set_seed, DummyOptim, DummyScheduler
 
 set_seed(0)
 accelerator = Accelerator(mixed_precision="fp16")
-from cnets import Model
-from configs import EConfig
+from eagle.model.cnets import Model
+from eagle.model.configs import EConfig
 from datasets import load_dataset
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
@@ -312,7 +313,7 @@ if rank == 0:
         os.makedirs(args.cpdir)
 
 config = EConfig.from_pretrained(train_config["config_path"])
-model = Model(config, path=args.basepath, load_emb=True)
+model = Model(config, path=args.basepath, bias=config.bias, load_emb=True)
 
 criterion = nn.SmoothL1Loss(reduction="none")
 
