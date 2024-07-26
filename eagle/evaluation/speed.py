@@ -34,6 +34,14 @@ with open(jsonl_file, 'r', encoding='utf-8') as file:
 
 speeds=[]
 taus=[]
+durations = dict(
+    total=0,
+    base=0,
+    ealayer=0,
+    head=0,
+    other=0,
+)
+
 for datapoint in data:
     qid=datapoint["question_id"]
     answer=datapoint["choices"][0]['turns']
@@ -41,6 +49,12 @@ for datapoint in data:
     times = sum(datapoint["choices"][0]['wall_time'])
     speeds.append(tokens/times)
     taus += datapoint["choices"][0]['taus']
+
+    durations['total'] += times
+    durations['base'] += datapoint["choices"][0]['base_time']
+    durations['ealayer'] += datapoint["choices"][0]['ealayer_time']
+    durations['head'] += datapoint["choices"][0]['head_time']
+    durations['other'] += times - (datapoint["choices"][0]['head_time'] + datapoint["choices"][0]['ealayer_time'] + datapoint["choices"][0]['base_time'])
 
 
 data = []
@@ -66,9 +80,15 @@ for datapoint in data:
 
 
 
+tau = np.array(taus).mean()
 # print('speed',np.array(speeds).mean())
 # print('speed0',np.array(speeds0).mean())
 print("ratio",np.array(speeds).mean()/np.array(speeds0).mean())
-print("tau",np.array(taus).mean())
+print("tau",tau)
+print("durations", durations)
+
+mean_durations = {k: v * 1000 / len(taus) for k, v in durations.items()}
+print("mean_durations", mean_durations)
+print("draft latency per token:", (mean_durations["ealayer"] + mean_durations["head"] + mean_durations["other"]) / tau)
 
 
