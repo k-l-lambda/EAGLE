@@ -2,22 +2,22 @@ import argparse
 
 
 parser = argparse.ArgumentParser(description='sp')
+parser.add_argument('--data', type=str, default='/models/datasets/ShareGPT/ShareGPT_V4.3_unfiltered_cleaned_split.json')
 parser.add_argument('--start', type=int, default=0)
-parser.add_argument('--end', type=int, default=100)
+parser.add_argument('--end', type=int)
 parser.add_argument('--index', type=int, default=1)
 parser.add_argument('--gpu_index', type=int, nargs='+', default=[0])
 parser.add_argument('--outdir', type=str, default='outdir0')
 args = parser.parse_args()
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_index)[1:-1]
+#os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_index)[1:-1]
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
 
 
-bigname = "/home/lyh/weights/hf/llama3chat/8B/"
-#bigname = "/home/lyh/weights/hf/llama2chat/7B/"
+bigname = "/models/Meta-Llama-3-8B-Instruct"
 
 
 
@@ -39,9 +39,11 @@ def build_dataset_rank(
         tokenizer, split="train",
         select=None,
 ):
-    ds = load_dataset('json', data_files="/home/lyh/data/hf/Shargpt/ShareGPT_V4.3_unfiltered_cleaned_split.json")
+    ds = load_dataset('json', data_files=args.data)
     ds = ds['train']
     ds = ds.shuffle(seed=42)
+    if args.end is None:
+        args.end = len(ds)
     ds1 = ds.select(range(args.start, args.end))
     # ds1 = ds.select(range(100,200))
     # dst=ds.select(range(200,300))
