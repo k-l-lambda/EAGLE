@@ -1,5 +1,7 @@
 import argparse
 
+from .data_adapters import ShareGPTAdatper
+
 
 parser = argparse.ArgumentParser(description='sp')
 parser.add_argument('--data', type=str, default='/models/datasets/ShareGPT/ShareGPT_V4.3_unfiltered_cleaned_split.json')
@@ -36,21 +38,16 @@ def longest_common_prefix(list1, list2):
 
 
 def build_dataset_rank(
-        tokenizer, split="train",
-        select=None,
+        tokenizer, adapter,
 ):
-    ds = load_dataset('json', data_files=args.data)
+    ds = load_dataset(adapter.loader_type, data_files=args.data)
     ds = ds['train']
     ds = ds.shuffle(seed=42)
     if args.end is None:
         args.end = len(ds)
     ds1 = ds.select(range(args.start, args.end))
-    # ds1 = ds.select(range(100,200))
-    # dst=ds.select(range(200,300))
-    # ds2=ds.select(range(300,len(ds)))
     original_columns1 = ds1.column_names
-    # original_columns2 = ds2.column_names
-    num_proc = 4
+    #num_proc = 4
 
     def preprocess_function(examples):
         new_examples = {
@@ -58,12 +55,12 @@ def build_dataset_rank(
             "input_ids": [],
             "loss_mask": []
         }
-        for i in range(len(examples['id'])):
+        for sentences in adapter.iterate(examples):
             messages = [
                 {"role": "system",
                  "content": "You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information."},
-            ]
-            convroles=["user","assistant"]
+            ] + sentences
+            '''convroles=["user","assistant"]
             roles = {"human": "user", "gpt": "assistant"}
             source= examples['conversations'][i]
             if roles[source[0]["from"]] != "user":
@@ -76,7 +73,7 @@ def build_dataset_rank(
                     sentence["value"]=" "+sentence["value"]
                 messages.append(
                     {"role": role, "content": sentence["value"]}
-                )
+                )'''
             conversation=tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
@@ -93,7 +90,6 @@ def build_dataset_rank(
                 add_special_tokens=False,
             ).input_ids[0]
             loss_mask=torch.ones_like(input_ids)
-            #print(i)
 
             sep = "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
 
@@ -103,6 +99,7 @@ def build_dataset_rank(
 
             sep2="<|eot_id|><|start_header_id|>user<|end_header_id|>"
             turns = conversation.split(sep2)
+            #print('turns:', len(turns))
 
             turns[1]=turns[0]+sep2+turns[1]
             turns=turns[1:]
@@ -165,7 +162,7 @@ def build_dataset_rank(
     return ds1
 
 bigtokenizer = AutoTokenizer.from_pretrained(bigname,use_fast=False)
-ds = build_dataset_rank(bigtokenizer)
+ds = build_dataset_rank(bigtokenizer, ShareGPTAdatper)
 print(ds)
 # quantization_config = BitsAndBytesConfig(
 #         load_in_4bit=True,
