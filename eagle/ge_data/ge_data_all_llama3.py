@@ -1,4 +1,5 @@
 import argparse
+import numpy as np
 
 from .data_adapters import adapter_dict
 
@@ -21,6 +22,10 @@ from datasets import load_dataset
 
 
 bigname = "/models/Meta-Llama-3-8B-Instruct"
+
+
+system_prompts = open('./eagle/data/system-prompts.txt', 'r').read().split('\n')
+system_prompts = [p.replace('\\n', '\n') for p in system_prompts]
 
 
 
@@ -57,24 +62,12 @@ def build_dataset_rank(
             "loss_mask": []
         }
         for sentences in adapter.iterate(examples):
-            messages = [
-                {"role": "system",
-                 "content": "You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.\n\nIf a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information."},
-            ] + sentences
-            '''convroles=["user","assistant"]
-            roles = {"human": "user", "gpt": "assistant"}
-            source= examples['conversations'][i]
-            if roles[source[0]["from"]] != "user":
-                # Skip the first one if it is not from human
-                source = source[1:]
-            for j, sentence in enumerate(source):
-                role = roles[sentence["from"]]
-                assert role == convroles[j % 2], f"{i}"
-                if sentence["from"]=="gpt":
-                    sentence["value"]=" "+sentence["value"]
-                messages.append(
-                    {"role": role, "content": sentence["value"]}
-                )'''
+            isys = np.random.randint(0, len(system_prompts))
+            sys = system_prompts[isys]
+            #print(f'{sys=}')
+            messages = [dict(role='system', content=sys)] if sys else []
+            messages += sentences
+
             conversation=tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
@@ -96,7 +89,7 @@ def build_dataset_rank(
 
 
 
-            total_len = len(input_ids)
+            #total_len = len(input_ids)
 
             sep2="<|eot_id|><|start_header_id|>user<|end_header_id|>"
             turns = conversation.split(sep2)
