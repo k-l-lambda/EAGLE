@@ -1,12 +1,13 @@
 import argparse
 
-from .data_adapters import ShareGPTAdatper
+from .data_adapters import adapter_dict
 
 
 parser = argparse.ArgumentParser(description='sp')
 parser.add_argument('--data', type=str, default='/models/datasets/ShareGPT/ShareGPT_V4.3_unfiltered_cleaned_split.json')
 parser.add_argument('--start', type=int, default=0)
 parser.add_argument('--end', type=int)
+parser.add_argument('--adapter', type=str, default='sharegpt')
 parser.add_argument('--index', type=int, default=1)
 parser.add_argument('--gpu_index', type=int, nargs='+', default=[0])
 parser.add_argument('--outdir', type=str, default='outdir0')
@@ -162,7 +163,7 @@ def build_dataset_rank(
     return ds1
 
 bigtokenizer = AutoTokenizer.from_pretrained(bigname,use_fast=False)
-ds = build_dataset_rank(bigtokenizer, ShareGPTAdatper)
+ds = build_dataset_rank(bigtokenizer, adapter_dict[args.adapter])
 print(ds)
 # quantization_config = BitsAndBytesConfig(
 #         load_in_4bit=True,

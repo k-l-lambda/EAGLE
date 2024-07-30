@@ -18,3 +18,21 @@ class ShareGPTAdatper:
 			), source))
 
 			yield messages
+
+
+class LmsysChatAdatper:
+	loader_type = 'parquet'
+
+	@staticmethod
+	def iterate (examples):
+		for conversation in examples['conversation']:
+			while conversation[0]['role'] != 'user':
+				conversation = conversation[1:]
+
+			yield conversation
+
+
+adapter_dict = dict(
+	sharegpt=ShareGPTAdatper,
+	lmsyschat=LmsysChatAdatper,
+)
