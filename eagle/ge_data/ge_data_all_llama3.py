@@ -41,7 +41,7 @@ def longest_common_prefix(list1, list2):
 def build_dataset_rank(
         tokenizer, adapter,
 ):
-    ds = load_dataset(adapter.loader_type, data_files=args.data)
+    ds = load_dataset(adapter.loader_type, data_files=args.data) if adapter.loader_type is not None else load_dataset(args.data)
     ds = ds['train']
     ds = ds.shuffle(seed=42)
     if args.end is None:

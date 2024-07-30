@@ -32,7 +32,27 @@ class LmsysChatAdatper:
 			yield conversation
 
 
+class UltraChatAdatper:
+	loader_type = None
+
+	@staticmethod
+	def iterate (examples):
+		for conversation in examples['data']:
+			messages = []
+			for i, sentence in enumerate(conversation):
+				role = 'user' if i % 2 == 0 else 'assistant'
+				messages.append(
+					dict(
+						role=role,
+						content=sentence,
+					)
+				)
+
+			yield messages
+
+
 adapter_dict = dict(
 	sharegpt=ShareGPTAdatper,
 	lmsyschat=LmsysChatAdatper,
+	ultrachat=UltraChatAdatper,
 )
