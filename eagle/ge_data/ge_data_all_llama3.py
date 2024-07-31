@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+from tqdm import tqdm
 
 from .data_adapters import adapter_dict
 
@@ -205,12 +206,10 @@ def writedata(name,data_point):
     torch.save(data_point, f'{name}/data_{idx}.ckpt')
 
 
-for id,data in enumerate(ds):
-    if id%100==0:
-        print(id,end="\t")
-    if id % 1000 == 0:
-        print("")
+for data in tqdm(ds):
+    #if id%100==0:
+    #    print(id,end="\t")
+    #if id % 1000 == 0:
+    #    print("")
     outdata = ge(data)
     writedata(outdir,outdata)
-
-
