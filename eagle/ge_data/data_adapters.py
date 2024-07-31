@@ -20,6 +20,17 @@ class ShareGPTAdatper:
 			yield messages
 
 
+class ShareGPTRegenAdatper:
+	loader_type = 'json'
+
+	@staticmethod
+	def iterate (examples):
+		for conversation in examples['conversation']:
+			#if conversation is None:
+			#	continue
+			yield conversation
+
+
 class LmsysChatAdatper:
 	loader_type = 'parquet'
 
@@ -53,6 +64,7 @@ class UltraChatAdatper:
 
 adapter_dict = dict(
 	sharegpt=ShareGPTAdatper,
+	sharegptrg=ShareGPTRegenAdatper,
 	lmsyschat=LmsysChatAdatper,
 	ultrachat=UltraChatAdatper,
 )

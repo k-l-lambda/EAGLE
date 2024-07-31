@@ -62,6 +62,7 @@ def build_dataset_rank(
             "loss_mask": []
         }
         for sentences in adapter.iterate(examples):
+            #print(f'{sentences=}')
             isys = np.random.randint(0, len(system_prompts))
             sys = system_prompts[isys]
             #print(f'{sys=}')
@@ -95,8 +96,9 @@ def build_dataset_rank(
             turns = conversation.split(sep2)
             #print('turns:', len(turns))
 
-            turns[1]=turns[0]+sep2+turns[1]
-            turns=turns[1:]
+            if len(turns) >= 2:
+                turns[1]=turns[0]+sep2+turns[1]
+                turns=turns[1:]
 
 
             cur_len = 1
