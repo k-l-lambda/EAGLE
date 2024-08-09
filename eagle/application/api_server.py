@@ -42,7 +42,7 @@ def generate_text():
 	prompt = conv.get_prompt()
 	#print('prompt:', prompt)
 
-	input_ids = ea_model.tokenizer.encode(prompt, return_tensors='pt').cuda()
+	input_ids = ea_model.tokenizer.encode(prompt, return_tensors='pt', add_special_tokens=False).cuda()
 	#attention_mask = torch.ones_like(input_ids)
 
 	with torch.inference_mode():
