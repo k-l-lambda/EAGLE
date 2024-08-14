@@ -376,7 +376,7 @@ def evaluate_posterior(
             best_candidate = torch.tensor(0, dtype=torch.long, device=candidates.device)
         else:
             best_candidate = torch.argmax(candidates_accept_length).to(torch.long)
-        return best_candidate, accept_length, logits[best_candidate, accept_length]
+        return best_candidate, accept_length.cpu().item(), logits[best_candidate, accept_length]
 
     else:
         accept_length = 1
