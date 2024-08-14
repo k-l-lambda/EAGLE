@@ -4,6 +4,9 @@ from eagle.model.ea_model import EaModel
 from fastchat.model import get_conversation_template
 from flask import Flask, request, jsonify
 import argparse
+import time
+
+from .throttle_lock import NSlotLock
 
 
 
@@ -18,6 +21,8 @@ args = parser.parse_args()
 
 app = Flask(__name__)
 
+device_table = {}
+
 
 def worker (device_index, queue):
 	# Load EAGLE model on the specific device
@@ -31,12 +36,13 @@ def worker (device_index, queue):
 	)
 	model.eval()
 
+	queue.put('ready')
+	time.sleep(4)
+
 	while True:
 		input = queue.get()
 		if input is None:
 			break
-
-		print('got:', device_index)
 
 		# Create a conversation template based on the model type
 		conv = get_conversation_template(model.base_model_name_or_path)
@@ -69,40 +75,38 @@ def worker (device_index, queue):
 
 
 @app.route('/generate', methods=['POST'])
-def generate ():
-	global request_i, num_gpus
+async def generate ():
+	async with NSlotLock(device_table, num_gpus) as lock:
+		print('got device:', lock.key)
 
-	data = request.get_json()
-	messages = data.get('messages', [])
-	max_new_tokens = data.get('max_new_tokens', 512)
-	temperature = data.get('temperature', 0.0)
-	top_p = data.get('top_p', 0.0)
-	top_k = data.get('top_k', 0)
+		data = request.get_json()
+		messages = data.get('messages', [])
+		max_new_tokens = data.get('max_new_tokens', 512)
+		temperature = data.get('temperature', 0.0)
+		top_p = data.get('top_p', 0.0)
+		top_k = data.get('top_k', 0)
 
-	input = dict(
-		messages=messages,
-		max_new_tokens=max_new_tokens,
-		temperature=temperature,
-		top_p=top_p,
-		top_k=top_k,
-	)
+		input = dict(
+			messages=messages,
+			max_new_tokens=max_new_tokens,
+			temperature=temperature,
+			top_p=top_p,
+			top_k=top_k,
+		)
 
-	queue = device_queues[request_i % num_gpus]
-	request_i += 1
-	queue.put(input)
-	output = queue.get()
+		queue = device_queues[lock.key]
+		queue.put(input)
+		output = queue.get()
 
-	return jsonify({'choices': [
-		{'message': {
-			'content': output,
-			'role': 'assistant',
-		}},
-	]})
+		return jsonify({'choices': [
+			{'message': {
+				'content': output,
+				'role': 'assistant',
+			}},
+		]})
 
 
 if __name__ == '__main__':
-	global request_i, num_gpus
-
 	num_gpus = torch.cuda.device_count()
 	request_i = 0
 	device_queues = {}
@@ -116,6 +120,10 @@ if __name__ == '__main__':
 		p = mp.Process(target=worker, args=(i, queue))
 		p.start()
 		processes.append(p)
+
+	for i, queue in device_queues.items():
+		init_state = queue.get()
+		print(f'device[{i}]: {init_state}')
 
 	app.run(host=args.host, port=args.port, debug=False, threaded=True)
 
