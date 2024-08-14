@@ -1,7 +1,8 @@
-from flask import Flask, request, jsonify
 import torch
+import torch.multiprocessing as mp
 from eagle.model.ea_model import EaModel
 from fastchat.model import get_conversation_template
+from flask import Flask, request, jsonify
 import argparse
 
 
@@ -14,12 +15,62 @@ parser.add_argument('--base-model-path', type=str, required=True, help='Path to 
 parser.add_argument('--ea-model-path', type=str, required=True, help='Path to the EAGLE checkpoint')
 args = parser.parse_args()
 
+
 app = Flask(__name__)
 
 
+def worker (device_index, queue):
+	# Load EAGLE model on the specific device
+	device = f'cuda:{device_index}'
+
+	model = EaModel.from_pretrained(
+		base_model_path=args.base_model_path,
+		ea_model_path=args.ea_model_path,
+		torch_dtype=torch.float16,
+		device_map=device,
+	)
+	model.eval()
+
+	while True:
+		input = queue.get()
+		if input is None:
+			break
+
+		print('got:', device_index)
+
+		# Create a conversation template based on the model type
+		conv = get_conversation_template(model.base_model_name_or_path)
+
+		# Add messages to the conversation template
+		for message in input['messages']:
+			role = message.get('role', '')
+			content = message.get('content', None)
+			conv.append_message(role, content)
+		conv.append_message(conv.roles[1], '')
+
+		# Get the prompt from the conversation template
+		prompt = conv.get_prompt()
+
+		input_ids = model.tokenizer.encode(prompt, return_tensors='pt', add_special_tokens=False).to(device)
+
+		with torch.inference_mode():
+			output_ids = model.eagenerate(
+				input_ids=input_ids,
+				is_llama3=True,
+				temperature=input['temperature'],
+				top_p=input['top_p'],
+				top_k=input['top_k'],
+				max_new_tokens=input['max_new_tokens'],
+			)
+
+		generated_text = model.tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True)
+
+		queue.put(generated_text)
+
+
 @app.route('/generate', methods=['POST'])
-def generate_text():
-	global ea_model
+def generate ():
+	global request_i, num_gpus
 
 	data = request.get_json()
 	messages = data.get('messages', [])
@@ -28,55 +79,48 @@ def generate_text():
 	top_p = data.get('top_p', 0.0)
 	top_k = data.get('top_k', 0)
 
-	# Create a conversation template based on the model type
-	conv = get_conversation_template(ea_model.base_model_name_or_path)
+	input = dict(
+		messages=messages,
+		max_new_tokens=max_new_tokens,
+		temperature=temperature,
+		top_p=top_p,
+		top_k=top_k,
+	)
 
-	# Add messages to the conversation template
-	for message in messages:
-		role = message.get('role', '')
-		content = message.get('content', None)
-		conv.append_message(role, content)
-	conv.append_message(conv.roles[1], '')
+	queue = device_queues[request_i % num_gpus]
+	request_i += 1
+	queue.put(input)
+	output = queue.get()
 
-	# Get the prompt from the conversation template
-	prompt = conv.get_prompt()
-	#print('prompt:', prompt)
-
-	input_ids = ea_model.tokenizer.encode(prompt, return_tensors='pt', add_special_tokens=False).cuda()
-	#attention_mask = torch.ones_like(input_ids)
-
-	with torch.inference_mode():
-		output_ids = ea_model.eagenerate(
-			input_ids=input_ids,
-			#attention_mask=attention_mask,
-			is_llama3=True,
-			temperature=temperature,
-			top_p=top_p,
-			top_k=top_k,
-			max_new_tokens=max_new_tokens
-		)
-
-	#print('output_ids:', output_ids.shape, output_ids.tolist())
-	generated_text = ea_model.tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True)
-	#print('generated_text:', generated_text)
-	#return jsonify({'generated_text': generated_text})
 	return jsonify({'choices': [
 		{'message': {
-			'content': generated_text,
+			'content': output,
 			'role': 'assistant',
 		}},
 	]})
 
 
 if __name__ == '__main__':
-	global ea_model
-	# Load the base model and EAGLE checkpoint
-	ea_model = EaModel.from_pretrained(
-		base_model_path=args.base_model_path,
-		ea_model_path=args.ea_model_path,
-		torch_dtype=torch.float16,
-		device_map='cuda',
-	)
-	ea_model.eval()
+	global request_i, num_gpus
 
-	app.run(host=args.host, port=args.port, debug=False, threaded=False)
+	num_gpus = torch.cuda.device_count()
+	request_i = 0
+	device_queues = {}
+	processes = []
+
+	mp.set_start_method('spawn', force=True)
+
+	for i in range(num_gpus):
+		queue = mp.Queue()
+		device_queues[i] = queue
+		p = mp.Process(target=worker, args=(i, queue))
+		p.start()
+		processes.append(p)
+
+	app.run(host=args.host, port=args.port, debug=False, threaded=True)
+
+	# Cleanup
+	for i in range(num_gpus):
+		device_queues[i].put(None)
+	for p in processes:
+		p.join()
