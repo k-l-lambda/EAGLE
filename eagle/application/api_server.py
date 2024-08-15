@@ -58,19 +58,23 @@ def worker (device_index, qin, qout):
 
 		input_ids = model.tokenizer.encode(prompt, return_tensors='pt', add_special_tokens=False).to(device)
 
-		with torch.inference_mode():
-			output_ids = model.eagenerate(
-				input_ids=input_ids,
-				is_llama3=True,
-				temperature=input['temperature'],
-				top_p=input['top_p'],
-				top_k=input['top_k'],
-				max_new_tokens=input['max_new_tokens'],
-			)
+		try:
+			with torch.inference_mode():
+				output_ids = model.eagenerate(
+					input_ids=input_ids,
+					is_llama3=True,
+					temperature=input['temperature'],
+					top_p=input['top_p'],
+					top_k=input['top_k'],
+					max_new_tokens=input['max_new_tokens'],
+				)
 
-		generated_text = model.tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True)
+			generated_text = model.tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True)
 
-		qout.put(generated_text)
+			qout.put(generated_text)
+		except Exception as e:
+			print('error in eagenerate:', e)
+			qout.put(None)
 
 
 @app.route('/generate', methods=['POST'])
@@ -97,10 +101,13 @@ async def generate ():
 		qin.put(input)
 		output = qout.get()
 
+		if output is None:
+			return jsonify({'error': 'failed to generate'}), 500
+
 		return jsonify({'choices': [
 			{'message': {
-				'content': output,
 				'role': 'assistant',
+				'content': output,
 			}},
 		]})
 
