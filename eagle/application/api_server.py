@@ -24,7 +24,7 @@ app = Flask(__name__)
 device_table = {}
 
 
-def worker (device_index, queue):
+def worker (device_index, qin, qout):
 	# Load EAGLE model on the specific device
 	device = f'cuda:{device_index}'
 
@@ -36,11 +36,10 @@ def worker (device_index, queue):
 	)
 	model.eval()
 
-	queue.put('ready')
-	time.sleep(4)
+	qout.put('ready')
 
 	while True:
-		input = queue.get()
+		input = qin.get()
 		if input is None:
 			break
 
@@ -71,7 +70,7 @@ def worker (device_index, queue):
 
 		generated_text = model.tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True)
 
-		queue.put(generated_text)
+		qout.put(generated_text)
 
 
 @app.route('/generate', methods=['POST'])
@@ -94,9 +93,9 @@ async def generate ():
 			top_k=top_k,
 		)
 
-		queue = device_queues[lock.key]
-		queue.put(input)
-		output = queue.get()
+		qin, qout = device_queues[lock.key]
+		qin.put(input)
+		output = qout.get()
 
 		return jsonify({'choices': [
 			{'message': {
@@ -115,20 +114,20 @@ if __name__ == '__main__':
 	mp.set_start_method('spawn', force=True)
 
 	for i in range(num_gpus):
-		queue = mp.Queue()
-		device_queues[i] = queue
-		p = mp.Process(target=worker, args=(i, queue))
+		qin, qout = mp.Queue(), mp.Queue()
+		device_queues[i] = (qin, qout)
+		p = mp.Process(target=worker, args=(i, qin, qout))
 		p.start()
 		processes.append(p)
 
-	for i, queue in device_queues.items():
-		init_state = queue.get()
+	for i, (qin, qout) in device_queues.items():
+		init_state = qout.get()
 		print(f'device[{i}]: {init_state}')
 
 	app.run(host=args.host, port=args.port, debug=False, threaded=True)
 
 	# Cleanup
 	for i in range(num_gpus):
-		device_queues[i].put(None)
+		device_queues[i][0].put(None)
 	for p in processes:
 		p.join()
