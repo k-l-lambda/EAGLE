@@ -1,5 +1,5 @@
 torch==2.0.1
-transformers==4.36.2
+transformers>=4.44.0
 accelerate==0.21.0
 fschat==0.2.31
 gradio==3.50.2
@@ -9,3 +9,4 @@ sentencepiece==0.1.99
 protobuf==3.19.0
 wandb
 datasets
+Flask>=3.0.3
