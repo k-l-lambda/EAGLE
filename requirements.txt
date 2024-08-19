@@ -10,3 +10,4 @@ protobuf==3.19.0
 wandb
 datasets
 Flask>=3.0.3
+Flask[async]
