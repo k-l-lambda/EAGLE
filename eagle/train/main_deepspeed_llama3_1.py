@@ -34,7 +34,7 @@ train_config = {
     "std": 0.2,
     "residual": "true,norm",
     "max_len": 2048,
-    "config_path": "/root/work/EAGLE/eagle/train/llama_3_8B_config.json",
+    "config_path": "./llama_3.1_8B_config.json",
     "b1": 0.9,
     "b2": 0.95,
     "grad_clip": 0.5,
