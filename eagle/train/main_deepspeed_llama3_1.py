@@ -6,7 +6,7 @@ parser.add_argument('--basepath', type=str, default='/var/lib/docker/models/Meta
 parser.add_argument('--tmpdir', type=str,
                     default='/var/lib/docker/datasets/eagle/llama3.1-8b-instruct-novita0812+categories90k')
 parser.add_argument('--outdir', type=str, default='0')
-parser.add_argument('--cpdir', type=str, default='/var/lib/docker/train/20240924-eagle-llama3.1-8b')
+parser.add_argument('--cpdir', type=str, default='/var/lib/docker/train/20240925-eagle-llama3.1-8b')
 parser.add_argument("--local_rank", type=int, default=-1, help="local_rank for distributed training on gpus")
 parser = deepspeed.add_config_arguments(parser)
 args = parser.parse_args()
