@@ -33,7 +33,7 @@ train_config = {
     "mean": 0.0,
     "std": 0.2,
     "residual": "true,norm",
-    "max_len": 2048,
+    "max_len": 8192,
     "config_path": "./llama_3.1_8B_config.json",
     "b1": 0.9,
     "b2": 0.95,
