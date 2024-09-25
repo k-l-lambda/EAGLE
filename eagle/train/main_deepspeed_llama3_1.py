@@ -15,7 +15,7 @@ import json
 
 train_config = {
     "lr": 5e-5,
-    "bs": 4,
+    "bs": 8,
     "gradient_accumulation_steps": 1,
     "datapath": f"{args.tmpdir}",
     "is_warmup": True,
