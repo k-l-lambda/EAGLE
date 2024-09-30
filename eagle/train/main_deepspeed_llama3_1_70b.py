@@ -34,7 +34,7 @@ train_config = {
     "std": 0.2,
     "residual": "true,norm",
     "max_len": 8192,
-    "config_path": "./llama_3.1_8B_config.json",
+    "config_path": "./llama_3.1_70B_config.json",
     "b1": 0.9,
     "b2": 0.95,
     "grad_clip": 0.5,
@@ -72,7 +72,7 @@ rank = torch.distributed.get_rank()
 if rank == 0:
     import wandb
 
-    wandb.init(project="eagle-llama3.1-8B", entity="k-l-lambda-org", config=train_config)
+    wandb.init(project="eagle-llama3.1-70B", entity="k-l-lambda-org", config=train_config)
 
 
 try:
