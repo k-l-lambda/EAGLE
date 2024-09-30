@@ -50,7 +50,7 @@ torch.backends.cuda.matmul.allow_tf32 = True
 from accelerate import Accelerator
 from accelerate.utils import set_seed, DummyOptim, DummyScheduler
 
-os.environ["MASTER_PORT"] = "29501"
+#os.environ["MASTER_PORT"] = "29502"
 
 set_seed(0)
 accelerator = Accelerator(mixed_precision="fp16")
